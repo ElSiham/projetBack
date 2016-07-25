@@ -1,0 +1,502 @@
+<doctype html!>
+<html>
+  <head>
+    <title>HTML5/JS & Websockets</title>
+    <!-- <link rel="stylesheet" href="./style.css"> -->
+    <link rel="stylesheet" href="./style.css" media="screen" title="no title" charset="utf-8">
+    <style media="screen">
+    #leFond{
+      position: relative;
+      height: 500px;
+      width: 800px;
+      border-radius: 30px;
+      background-color: lightgrey;
+      overflow: hidden;
+      border: 2px solid black;
+    }
+    #popin{
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background-color: rgba(0, 0, 0, 0.6);
+      border: 1px solid black;
+      z-index: 2;
+    }
+    #form{
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin: auto;
+      padding: 20px;
+      background-color: black;
+      color: white;
+      border-radius: 2%;
+    }
+    #attente{
+      position: absolute;
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background-color: rgba(0, 0, 0, 0.6);
+      border: 1px solid black;
+      z-index: 2;
+      display: none;
+    }
+    #go{
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin: auto;
+      padding: 20px;
+      background-color: grey;
+      color: white;
+      border-radius: 2%;
+    }
+    #tabScores{
+      display: none;
+    }
+    </style>
+  </head>
+  <!-- Chargement du "framework" client socket.io -->
+  <script type="text/javascript" src="/socket.io/socket.io.js"></script>
+  <!--
+    Coté serveur, si on utilise le module socket.io, le serveur se voit automatiquement attribué un
+    gestionnaire d'événement pour la route : /socket.io/socket.io.js ( le fichier étant réellement
+    situé coté serveur dans le dossier : \node_modules\socket.io\node_modules\socket.io-client )
+  -->
+  <script type="text/javascript">
+
+    (function(window, io){
+
+      //Au chargement du document
+      window.addEventListener('DOMContentLoaded',function(){
+
+        // function pop(div) {
+        // 	document.getElementById(div).style.display='block';
+        // 	return false;
+        // };
+
+
+        /**
+          Établissement d'une nouvelle connexion WebSocket vers le serveur
+          WebSocket à l'aide de la fonction io fournie par le "framework"
+          client socket.io.
+        **/
+        var socket = io('http://192.168.0.16:8888/');
+
+        // socket : Est un objet qui représente la connexion WebSocket établie entre le client WebSocket et le serveur WebSocket.
+
+        // var HTMLpElement = window.document.getElementById('clickable-element');
+        // HTMLpElement.addEventListener('click', function(event){
+
+          /**
+            A chaque clic de souris sur l'élément HTML considéré
+            on envoi un message à travers la connexion WebSocket.
+          **/
+        //   socket.emit('unEvenement', { texte: 'Hello !' });
+        //   /**
+        //     On déclare un évènement personnalisé 'unEvenement' dont
+        //     la réception sera gérée coté serveur.
+        //   **/
+        //
+        // });
+        //
+        // /**
+        //   On attache un gestionnaire d'évènement à un évènement personnalisé 'unAutreEvenement'
+        //   qui correspond à un événement déclaré coté serveur qui est déclenché lorsqu'un message
+        //   a été reçu en provenance du serveur WebSocket.
+        // **/
+        // socket.on('unAutreEvenement', function (data) {
+        //
+        //   /**
+        //     A chaque message reçu, on affiche les données
+        //     obtenues dans la console du navigateur Internet.
+        //   **/
+        //   console.log(data);
+        // });
+
+        var tabPerso = [];
+        var moi = {};
+        var move;
+        var otherMove;
+        var enmove = false;
+        var monInterval;
+        var monPseudo;
+        var ready = false;
+        var clique = false;
+        var dejaclique = false;
+        var leFond = document.getElementById('leFond');
+        var bouton = document.getElementById('bouton');
+        var message = document.getElementById('message');
+        var scores = document.getElementById('scores');
+
+        bouton.onclick = function(){
+          monPseudo = document.getElementById('pseudo').value;
+          //console.log(monPseudo);
+          socket.emit('pseudo', monPseudo);
+          socket.on('taken', function(taken){
+            //console.log('pseudo revenu');
+            if(!taken){
+              document.getElementById('popin').style.display='none';
+            } else{
+              message.innerHTML = 'Ce pseudo est déjà pris!';
+            };
+          })
+        };
+
+        scores.onclick = function(){
+          var tableau = document.getElementById('tabScores');
+          if(clique){
+            tableau.style.display = 'none';
+            clique = false;
+          } else {
+            tableau.style.display = 'block';
+            clique = true;
+          };
+        };
+
+        socket.on('scores', function(tabScore){
+          //console.log('scores', tabScore);
+          var tableau = document.getElementById('tabScores');
+          tableau.innerHTML = '';
+          for (var i = 0; tabScore[i]; i++) {
+            let j = i;
+            if(j == 5){
+              break;
+            } else {
+              var name = document.createElement("p");
+              var score = document.createElement("p");
+              name.style.display = 'inline';
+              score.style.display = 'inline';
+              name.innerHTML = tabScore[i].pseudo+'   |   ';
+              score.innerHTML = tabScore[i].score;
+              tableau.appendChild(name);
+              tableau.appendChild(score);
+              tableau.innerHTML += '<br>';
+            };
+          };
+
+
+        });
+
+        socket.on('message', function(joueur){
+          // for (var i = 0; tabPerso[i]; i++) {
+              var monCarre = document.createElement("div");
+              //console.log(joueur.id);
+              monCarre.id = joueur.id;
+              monCarre.style.height = "50px";
+              monCarre.style.width = "50px";
+              monCarre.style.borderRadius = "20px";
+              monCarre.style.position = "relative";
+              monCarre.style.backgroundColor = joueur.color;
+              monCarre.style.top = joueur.top;
+              monCarre.style.left = '50px';
+              leFond.appendChild(monCarre);
+              monCarre.setAttribute("class", "carre");
+              //console.log('joueur ', joueur.id);
+              moi = joueur;
+              //console.log(monPseudo, 'est mon pseudo');
+              document.getElementById('monnom').innerHTML = 'Bonjour '+ monPseudo + ' !';
+              document.getElementById('attente').style.display = 'block';
+              console.log('moi ', moi);
+          // };
+        });
+
+        socket.on('others', function(tab){
+          //console.log('others', tab);
+          for (var i = 0; i<tab.length; i++) {
+            if (tab[i].id != moi.id) {
+              //console.log('id other', tab[i]);
+              //console.log(tab[i].id);
+              var unCarre = document.createElement("div");
+              unCarre.id = tab[i].id;
+              unCarre.style.position = "absolute";
+              unCarre.style.height = "50px";
+              unCarre.style.width = "50px";
+              unCarre.style.borderRadius = "20px";
+              unCarre.style.backgroundColor = tab[i].color;
+              unCarre.style.top = tab[i].top;
+              unCarre.style.left = '50px';
+              unCarre.onclick = function(){
+                touche(this.id);
+              };
+              unCarre.setAttribute("class", "carre");
+              leFond.appendChild(unCarre);
+              tabPerso.push(tab[i]);
+              //tabPerso = tab;
+            };
+          };
+        });
+
+        socket.on('ready', function(uready){
+          ready = uready;
+          document.getElementById('go').style.color = 'red';
+          document.getElementById('go').style.fontSize = '60px';
+          document.getElementById('go').innerHTML = 'GO !';
+          setTimeout(function () {
+            document.getElementById('attente').style.display = 'none';
+          }, 1000);
+        })
+
+        // socket.on('newPlayer', function(other){
+        //   console.log(tabUsers);
+        //   //afficher le nouveau joueur ici
+        //   var unCarre = document.createElement("div");
+        //   unCarre.id = other.id;
+        //   unCarre.style.position = "absolute";
+        //   unCarre.style.height = "50px";
+        //   unCarre.style.width = "50px";
+        //   unCarre.style.borderRadius = "20px";
+        //   unCarre.style.backgroundColor = other.color;
+        //   unCarre.style.top = other.posy;
+        //   unCarre.style.left = other.posx;
+        //   leFond.appendChild(unCarre);
+        // });
+
+        window.onkeydown = function(event){
+
+          var code = event.keyCode;
+
+          switch(code){
+            case 37:
+
+              //alert('gauche');
+            break;
+            case 38:
+              //instructions
+              alert('haut');
+            break;
+            case 39:
+            if(ready){
+              console.log('ready', ready);
+              movement();
+              event.preventDefault();
+            };
+              //alert('droite');
+            break;
+            case 40:
+              //instructions
+              alert('bas');
+            break;
+          };
+        };
+
+        var movement = function(){
+          var monCarre = document.getElementById(moi.id);
+          if(enmove === false){
+            move = parseInt(monCarre.style.left);
+            monInterval = setInterval(function () {
+              move += 10 ;
+              monCarre.style.left = move + 'px';
+              //console.log('distance', otherMove);
+            }, 100);
+            socket.emit('move', moi.id);
+            enmove = true;
+          };
+        };
+
+        window.onkeyup = function(event){
+          var monCarre = document.getElementById(moi.id);
+          var code = event.keyCode;
+
+          switch(code){
+            case 37:
+
+              //alert('gauche');
+            break;
+            case 38:
+              //instructions
+              alert('haut');
+            break;
+            case 39:
+              socket.emit('end', moi.id);
+              enmove = false;
+              clearInterval(monInterval);
+              //alert('droite');
+            break;
+            case 40:
+              //instructions
+              alert('bas');
+            break;
+          };
+        };
+
+        var touche = function(id){
+          if(!dejaclique){
+            console.log('touche', id);
+            blesse(id);
+            socket.emit('touche', id);
+            dejaclique = true;
+          }
+        };
+
+        socket.on('aterre', function(id){
+          blesse(id);
+        });
+
+        var blesse = function(id){
+          if (id == moi.id) {
+            document.getElementById(id).style.display = 'none';
+            document.getElementById('go').style.fontSize = "20px";
+            document.getElementById('go').innerHTML = "Vous avez été découvert!";
+            document.getElementById('attente').style.display = 'block';
+          } else{
+            for (var i = 0; tabPerso[i]; i++) {
+              if (tabPerso[i].id == id) {
+                tabPerso.splice(i, 1);
+                document.getElementById(id).style.display = 'none';
+                break;
+              };
+            };
+          };
+        };
+
+        var start = function(joueur){
+          if(joueur != moi.id){
+            console.log('lautre avance', joueur);
+            var leCarre = document.getElementById(joueur);
+            otherMove = parseInt(leCarre.style.left);
+            var intervalId = setInterval(function () {
+              otherMove += 10 ;
+              leCarre.style.left = otherMove + 'px';
+              //console.log('distance', otherMove);
+            }, 100);
+            for (var i = 0; tabPerso[i]; i++) {
+              if (tabPerso[i].id === joueur) {
+                console.log('interval', intervalId);
+                tabPerso[i].interval = intervalId;
+              };
+            };
+          };
+        };
+
+        socket.on('start', function(joueur){
+          //console.log('existe');
+          start(joueur);
+        });
+
+        socket.on('stop', function(joueur){
+          //console.log('existe');
+          console.log('bot sarrete', joueur);
+          if(joueur != moi.id){
+            for (var i = 0; tabPerso[i]; i++) {
+              if (tabPerso[i].id === joueur) {
+                clearInterval(tabPerso[i].interval);
+              };
+            };
+          };
+        });
+
+        socket.on('victory', function(message){
+          var paras = document.getElementsByClassName('carre');
+          while(paras[0]){
+            paras[0].parentNode.removeChild(paras[0]);
+          };
+
+          document.getElementById('go').innerHTML = message;
+          document.getElementById('go').style.color = 'green';
+          document.getElementById('go').style.fontSize = '40px';
+          var replay = document.createElement("button");
+          replay.setAttribute("id", "replay");
+          replay.innerHTML = 'Rejouer ?';
+          go.appendChild(replay);
+          document.getElementById('attente').style.display = 'block';
+
+          var tabPerso = [];
+          var moi = {};
+          var move = '';
+          var otherMove = '';
+          var enmove = false;
+          var monInterval = '';
+          var monPseudo = '';
+          var ready = false;
+          rejouer();
+        });
+
+        socket.on('partieFinie', function(message){
+          var paras = document.getElementsByClassName('carre');
+          while(paras[0]){
+            paras[0].parentNode.removeChild(paras[0]);
+          };
+
+          document.getElementById('go').innerHTML = message;
+          document.getElementById('go').style.color = 'green';
+          document.getElementById('go').style.fontSize = '40px';
+          var replay = document.createElement("button");
+          replay.setAttribute("id", "replay");
+          replay.innerHTML = 'Rejouer ?';
+          go.appendChild(replay);
+          document.getElementById('attente').style.display = 'block';
+
+          var tabPerso = [];
+          var moi = {};
+          var move = '';
+          var otherMove = '';
+          var enmove = false;
+          var monInterval = '';
+          var monPseudo = '';
+          var ready = false;
+          var dejaclique = false;
+          rejouer();
+        });
+
+        var rejouer = function(){
+          document.getElementById('replay').onclick = function(){
+            document.getElementById('go').innerHTML = '>>>En attente des autres joueurs...<<<';
+            document.getElementById('go').style.fontSize = '20px';
+            document.getElementById('go').style.color = 'black';
+            socket.emit('rejouer', monPseudo);
+          };
+        };
+
+        // socket.on('gone', function(gone){
+        //   for (var i = 0; tabUsers[i]; i++) {
+        //     if (gone === tabUsers[i].id){
+        //       var suppr = document.getElementById(tabUsers[i].id);
+        //       suppr.remove();
+        //     };
+        //   };
+        // });
+
+      });
+
+    })(window, io);
+  </script>
+  <body>
+    <h1>Cache-course</h1>
+    <p>
+      Arrivez en premier à la ligne d'arrivée... <br> Sans vous faire remarquer!
+    </p>
+    <div class="profil">
+      <span id="monnom"></span><br>
+      <img src="" alt="image de profil" /><br>
+      <button id="scores" type="button" name="button">Scores</button>
+      <div id="tabScores">
+
+      </div>
+      <!-- <span id="point">Tu n'as gagné aucune partie pour le moment.</span> -->
+    </div><br><br>
+    <div id="popin">
+      <form id="form" action="index.html" method="post">
+        <br><br>
+        <label for="nom">Votre pseudo: <input id="pseudo" type="text" name="nom" value=""></label><br><br><br>
+        <!-- <input type="submit" name="name" value="JOUER" onclick="pop('popin')"> -->
+        <p id="message"></p>
+        <button id="bouton" type="button" name="button">JOUER</button>
+      </form>
+    </div>
+    <div id="attente">
+      <div id="go">
+        >>>En attente des autres joueurs...<<<
+      </div>
+    </div>
+    <div id="leFond">
+
+    </div>
+
+  </body>
+</html>
